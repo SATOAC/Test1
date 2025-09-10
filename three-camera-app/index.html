@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>3D Camera Editor - Z Up</title>
+	<link rel="stylesheet" href="./styles.css" />
+	<!-- Three.js CDN (global THREE namespace) -->
+	<script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+</head>
+<body>
+	<div id="app">
+		<div id="canvas-container" aria-label="3D viewport"></div>
+		<div class="panel" aria-label="Controls panel">
+			<h2>Camera Controls</h2>
+			<div class="row">
+				<label for="lensPreset"><strong>Focal Length Preset</strong></label>
+				<select id="lensPreset">
+					<option value="">Custom</option>
+					<option value="15">15 mm</option>
+					<option value="20">20 mm</option>
+					<option value="28">28 mm</option>
+					<option value="35" selected>35 mm</option>
+					<option value="50">50 mm</option>
+					<option value="85">85 mm</option>
+					<option value="135">135 mm</option>
+					<option value="200">200 mm</option>
+				</select>
+			</div>
+
+			<div class="row">
+				<label for="lensCustom"><strong>Custom Focal Length (mm)</strong></label>
+				<input id="lensCustom" type="number" min="0.1" max="1000" step="0.1" value="35" />
+			</div>
+
+			<hr />
+
+			<div class="row">
+				<label for="cameraZ"><strong>Camera Height Z</strong></label>
+				<input id="cameraZ" type="range" min="-10" max="10" step="0.01" value="2" />
+				<input id="cameraZNumber" type="number" min="-10" max="10" step="0.01" value="2" />
+			</div>
+
+			<div class="row">
+				<label for="targetZ"><strong>Target Height Z</strong></label>
+				<input id="targetZ" type="range" min="-10" max="10" step="0.01" value="0" />
+				<input id="targetZNumber" type="number" min="-10" max="10" step="0.01" value="0" />
+			</div>
+
+			<hr />
+
+			<div class="row">
+				<strong>Distance Control Mode</strong>
+				<div class="inline">
+					<label><input type="radio" name="distanceMode" value="y" checked /> Y Axis</label>
+					<label><input type="radio" name="distanceMode" value="tilt" /> Tilt Angle</label>
+				</div>
+			</div>
+
+			<div class="row" id="distanceYRow">
+				<label for="distanceY"><strong>Camera Distance Y</strong></label>
+				<input id="distanceY" type="range" min="0.1" max="50" step="0.01" value="6" />
+				<input id="distanceYNumber" type="number" min="0.1" max="50" step="0.01" value="6" />
+			</div>
+
+			<div class="row hidden" id="tiltRow">
+				<label for="tiltAngle"><strong>Tilt Angle (° from horizontal)</strong></label>
+				<input id="tiltAngle" type="range" min="1" max="89" step="0.1" value="18" />
+				<input id="tiltAngleNumber" type="number" min="1" max="89" step="0.1" value="18" />
+			</div>
+
+			<div class="readouts">
+				<div><strong>Actual Euclidean Distance</strong>: <span id="euclidDist">–</span></div>
+				<div><strong>Current Camera</strong>: (<span id="camX">0</span>, <span id="camY">0</span>, <span id="camZ">0</span>)</div>
+				<div><strong>Current Target</strong>: (<span id="tgtX">0</span>, <span id="tgtY">0</span>, <span id="tgtZ">0</span>)</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="./main.js"></script>
+</body>
+</html>
+
