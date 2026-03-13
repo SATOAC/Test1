@@ -58,8 +58,18 @@
 	const tiltAngle = document.getElementById('tiltAngle');
 	const tiltAngleNumber = document.getElementById('tiltAngleNumber');
 	const distanceModeRadios = Array.from(document.querySelectorAll('input[name="distanceMode"]'));
+	const viewportModeRadios = Array.from(document.querySelectorAll('input[name="viewportMode"]'));
 	const distanceYRow = document.getElementById('distanceYRow');
 	const tiltRow = document.getElementById('tiltRow');
+	const imageToolControls = document.getElementById('imageToolControls');
+	const imageToolViewport = document.getElementById('image-tool-viewport');
+	const imageUpload = document.getElementById('imageUpload');
+	const pixelsPerUnit = document.getElementById('pixelsPerUnit');
+	const unitLabel = document.getElementById('unitLabel');
+	const clearMeasurements = document.getElementById('clearMeasurements');
+	const dimensionCanvas = document.getElementById('dimensionCanvas');
+	const imageToolEmptyState = document.getElementById('imageToolEmptyState');
+	const dimensionCtx = dimensionCanvas.getContext('2d');
 
 	const readout = {
 		euclidDist: document.getElementById('euclidDist'),
@@ -71,12 +81,22 @@
 		tgtZ: document.getElementById('tgtZ')
 	};
 
+	let activeViewportMode = 'three';
+	const imageToolState = {
+		image: null,
+		drawRect: null,
+		measurements: [],
+		draft: null
+	};
+
 	// Sizing
 	function resizeRenderer() {
 		const { clientWidth, clientHeight } = container;
 		renderer.setSize(clientWidth, clientHeight, false);
 		camera.aspect = clientWidth / clientHeight;
 		camera.updateProjectionMatrix();
+		resizeImageCanvas();
+		renderImageTool();
 	}
 	window.addEventListener('resize', resizeRenderer);
 	// Initial size using parent size; if 0, fallback to window
@@ -101,10 +121,154 @@
 		return checked ? checked.value : 'y';
 	}
 
+	function getActiveViewportMode() {
+		const checked = viewportModeRadios.find(r => r.checked);
+		return checked ? checked.value : 'three';
+	}
+
 	function updateUIVisibility() {
 		const mode = getActiveDistanceMode();
 		distanceYRow.classList.toggle('hidden', mode !== 'y');
 		tiltRow.classList.toggle('hidden', mode !== 'tilt');
+	}
+
+	function updateViewportVisibility() {
+		activeViewportMode = getActiveViewportMode();
+		const imageMode = activeViewportMode === 'image';
+		imageToolControls.classList.toggle('hidden', !imageMode);
+		imageToolViewport.classList.toggle('hidden', !imageMode);
+		renderer.domElement.style.display = imageMode ? 'none' : 'block';
+		renderImageTool();
+	}
+
+	function resizeImageCanvas() {
+		const dpr = Math.min(window.devicePixelRatio || 1, 2);
+		const width = Math.max(1, container.clientWidth);
+		const height = Math.max(1, container.clientHeight);
+		dimensionCanvas.width = Math.floor(width * dpr);
+		dimensionCanvas.height = Math.floor(height * dpr);
+		dimensionCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+	}
+
+	function getCanvasPointer(evt) {
+		const rect = dimensionCanvas.getBoundingClientRect();
+		return {
+			x: evt.clientX - rect.left,
+			y: evt.clientY - rect.top
+		};
+	}
+
+	function clamp(value, min, max) {
+		return Math.min(max, Math.max(min, value));
+	}
+
+	function getPixelsPerUnit() {
+		const parsed = Number(pixelsPerUnit.value);
+		return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+	}
+
+	function getUnitLabel() {
+		const trimmed = (unitLabel.value || '').trim();
+		return trimmed || 'px';
+	}
+
+	function canvasToImagePoint(point) {
+		if (!imageToolState.image || !imageToolState.drawRect) return null;
+		const rect = imageToolState.drawRect;
+		const img = imageToolState.image;
+		const clampedX = clamp(point.x, rect.x, rect.x + rect.width);
+		const clampedY = clamp(point.y, rect.y, rect.y + rect.height);
+		return {
+			x: ((clampedX - rect.x) / rect.width) * img.width,
+			y: ((clampedY - rect.y) / rect.height) * img.height
+		};
+	}
+
+	function imageToCanvasPoint(point) {
+		if (!imageToolState.image || !imageToolState.drawRect) return null;
+		const rect = imageToolState.drawRect;
+		const img = imageToolState.image;
+		return {
+			x: rect.x + (point.x / img.width) * rect.width,
+			y: rect.y + (point.y / img.height) * rect.height
+		};
+	}
+
+	function drawMeasurementLine(startCanvas, endCanvas, pixelLength) {
+		const dx = endCanvas.x - startCanvas.x;
+		const dy = endCanvas.y - startCanvas.y;
+		const lineLength = Math.hypot(dx, dy);
+		if (lineLength < 0.001) return;
+
+		dimensionCtx.strokeStyle = '#38bdf8';
+		dimensionCtx.lineWidth = 2;
+		dimensionCtx.lineCap = 'round';
+		dimensionCtx.beginPath();
+		dimensionCtx.moveTo(startCanvas.x, startCanvas.y);
+		dimensionCtx.lineTo(endCanvas.x, endCanvas.y);
+		dimensionCtx.stroke();
+
+		dimensionCtx.fillStyle = '#22d3ee';
+		dimensionCtx.beginPath();
+		dimensionCtx.arc(startCanvas.x, startCanvas.y, 3, 0, Math.PI * 2);
+		dimensionCtx.arc(endCanvas.x, endCanvas.y, 3, 0, Math.PI * 2);
+		dimensionCtx.fill();
+
+		const midpoint = { x: (startCanvas.x + endCanvas.x) / 2, y: (startCanvas.y + endCanvas.y) / 2 };
+		const units = pixelLength / getPixelsPerUnit();
+		const labelText = `${units.toFixed(2)} ${getUnitLabel()}`;
+		dimensionCtx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+		const textWidth = dimensionCtx.measureText(labelText).width;
+		const pad = 6;
+		const normal = { x: -dy / lineLength, y: dx / lineLength };
+		const labelX = midpoint.x + normal.x * 14;
+		const labelY = midpoint.y + normal.y * 14;
+
+		dimensionCtx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+		dimensionCtx.fillRect(labelX - textWidth / 2 - pad, labelY - 11, textWidth + pad * 2, 18);
+		dimensionCtx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+		dimensionCtx.lineWidth = 1;
+		dimensionCtx.strokeRect(labelX - textWidth / 2 - pad, labelY - 11, textWidth + pad * 2, 18);
+
+		dimensionCtx.fillStyle = '#e0f2fe';
+		dimensionCtx.fillText(labelText, labelX - textWidth / 2, labelY + 2);
+	}
+
+	function renderImageTool() {
+		const width = Math.max(1, container.clientWidth);
+		const height = Math.max(1, container.clientHeight);
+		dimensionCtx.clearRect(0, 0, width, height);
+
+		if (!imageToolState.image) {
+			imageToolState.drawRect = null;
+			imageToolEmptyState.classList.toggle('hidden', activeViewportMode !== 'image');
+			return;
+		}
+
+		imageToolEmptyState.classList.add('hidden');
+		const img = imageToolState.image;
+		const scale = Math.min(width / img.width, height / img.height);
+		const drawWidth = img.width * scale;
+		const drawHeight = img.height * scale;
+		const drawX = (width - drawWidth) / 2;
+		const drawY = (height - drawHeight) / 2;
+		imageToolState.drawRect = { x: drawX, y: drawY, width: drawWidth, height: drawHeight };
+
+		dimensionCtx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+		imageToolState.measurements.forEach(entry => {
+			const startCanvas = imageToCanvasPoint(entry.start);
+			const endCanvas = imageToCanvasPoint(entry.end);
+			drawMeasurementLine(startCanvas, endCanvas, entry.pixelLength);
+		});
+
+		if (imageToolState.draft) {
+			const startCanvas = imageToCanvasPoint(imageToolState.draft.start);
+			const endCanvas = imageToCanvasPoint(imageToolState.draft.end);
+			const dx = imageToolState.draft.end.x - imageToolState.draft.start.x;
+			const dy = imageToolState.draft.end.y - imageToolState.draft.start.y;
+			const pixelLength = Math.hypot(dx, dy);
+			drawMeasurementLine(startCanvas, endCanvas, pixelLength);
+		}
 	}
 
 	function updateCameraFromControls() {
@@ -220,14 +384,91 @@
 		});
 	});
 
+	// Viewport mode radios
+	viewportModeRadios.forEach(radio => {
+		radio.addEventListener('change', updateViewportVisibility);
+	});
+
+	imageUpload.addEventListener('change', () => {
+		const [file] = imageUpload.files || [];
+		if (!file) return;
+		const fileReader = new FileReader();
+		fileReader.onload = event => {
+			const loaded = new Image();
+			loaded.onload = () => {
+				imageToolState.image = loaded;
+				imageToolState.measurements = [];
+				imageToolState.draft = null;
+				renderImageTool();
+			};
+			loaded.src = String(event.target?.result || '');
+		};
+		fileReader.readAsDataURL(file);
+	});
+
+	function updateDraftMeasurement(evt) {
+		if (!imageToolState.draft) return;
+		const pointer = getCanvasPointer(evt);
+		const asImagePoint = canvasToImagePoint(pointer);
+		if (!asImagePoint) return;
+		imageToolState.draft.end = asImagePoint;
+		renderImageTool();
+	}
+
+	dimensionCanvas.addEventListener('pointerdown', evt => {
+		if (!imageToolState.image || activeViewportMode !== 'image') return;
+		const pointer = getCanvasPointer(evt);
+		if (!imageToolState.drawRect) return;
+		const rect = imageToolState.drawRect;
+		const inside = pointer.x >= rect.x && pointer.x <= rect.x + rect.width && pointer.y >= rect.y && pointer.y <= rect.y + rect.height;
+		if (!inside) return;
+		const start = canvasToImagePoint(pointer);
+		if (!start) return;
+		imageToolState.draft = { start, end: start };
+		dimensionCanvas.setPointerCapture(evt.pointerId);
+		renderImageTool();
+	});
+
+	dimensionCanvas.addEventListener('pointermove', updateDraftMeasurement);
+	dimensionCanvas.addEventListener('pointerup', evt => {
+		if (!imageToolState.draft) return;
+		updateDraftMeasurement(evt);
+		const draft = imageToolState.draft;
+		const dx = draft.end.x - draft.start.x;
+		const dy = draft.end.y - draft.start.y;
+		const pixelLength = Math.hypot(dx, dy);
+		if (pixelLength >= 1) {
+			imageToolState.measurements.push({ start: draft.start, end: draft.end, pixelLength });
+		}
+		imageToolState.draft = null;
+		renderImageTool();
+	});
+	dimensionCanvas.addEventListener('pointercancel', () => {
+		imageToolState.draft = null;
+		renderImageTool();
+	});
+
+	[pixelsPerUnit, unitLabel].forEach(input => {
+		['input', 'change'].forEach(evt => input.addEventListener(evt, renderImageTool));
+	});
+
+	clearMeasurements.addEventListener('click', () => {
+		imageToolState.measurements = [];
+		imageToolState.draft = null;
+		renderImageTool();
+	});
+
 	// Initial values
 	setFocalLengthMm(lensCustom.value);
 	updateUIVisibility();
+	updateViewportVisibility();
 	updateCameraFromControls();
 
 	// Render loop
 	function animate() {
-		renderer.render(scene, camera);
+		if (activeViewportMode === 'three') {
+			renderer.render(scene, camera);
+		}
 		requestAnimationFrame(animate);
 	}
 	animate();

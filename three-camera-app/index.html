@@ -10,9 +10,38 @@
 </head>
 <body>
 	<div id="app">
-		<div id="canvas-container" aria-label="3D viewport"></div>
+		<div id="canvas-container" aria-label="Viewport">
+			<div id="image-tool-viewport" class="hidden" aria-label="Image dimension overlay viewport">
+				<canvas id="dimensionCanvas"></canvas>
+				<div id="imageToolEmptyState">Upload an image, then click and drag to place dimension lines.</div>
+			</div>
+		</div>
 		<div class="panel" aria-label="Controls panel">
 			<h2>Camera Controls</h2>
+			<div class="row">
+				<strong>Viewport Mode</strong>
+				<div class="inline">
+					<label><input type="radio" name="viewportMode" value="three" checked /> 3D Camera</label>
+					<label><input type="radio" name="viewportMode" value="image" /> Image Dimension Overlay</label>
+				</div>
+			</div>
+
+			<div id="imageToolControls" class="hidden">
+				<div class="row">
+					<label for="imageUpload"><strong>Image</strong></label>
+					<input id="imageUpload" type="file" accept="image/*" />
+				</div>
+				<div class="row">
+					<label for="pixelsPerUnit"><strong>Pixels Per Unit</strong></label>
+					<input id="pixelsPerUnit" type="number" min="0.0001" step="0.1" value="1" />
+					<input id="unitLabel" type="text" value="px" maxlength="12" />
+				</div>
+				<div class="row">
+					<button id="clearMeasurements" type="button">Clear Measurements</button>
+				</div>
+				<hr />
+			</div>
+
 			<div class="row">
 				<label for="lensPreset"><strong>Focal Length Preset</strong></label>
 				<select id="lensPreset">
