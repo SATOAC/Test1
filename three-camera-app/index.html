@@ -7,11 +7,43 @@
 	<link rel="stylesheet" href="./styles.css" />
 	<!-- Three.js CDN (global THREE namespace) -->
 	<script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+	<script src="https://unpkg.com/three@0.161.0/examples/js/loaders/GLTFLoader.js"></script>
+	<script src="https://unpkg.com/three@0.161.0/examples/js/loaders/OBJLoader.js"></script>
 </head>
 <body>
 	<div id="app">
 		<div id="canvas-container" aria-label="3D viewport"></div>
 		<div class="panel" aria-label="Controls panel">
+			<h2>Model Tool</h2>
+			<div class="row row-single">
+				<label for="modelInput"><strong>Upload 3D Model (.glb, .gltf, .obj)</strong></label>
+				<input id="modelInput" type="file" accept=".glb,.gltf,.obj" multiple />
+			</div>
+			<div class="readouts">
+				<div><strong>Model Status</strong>: <span id="modelStatus">No model uploaded (showing default cube)</span></div>
+			</div>
+			<div class="row">
+				<label for="rotateX"><strong>Model Rotation X (°)</strong></label>
+				<input id="rotateX" type="range" min="-180" max="180" step="1" value="0" />
+				<input id="rotateXNumber" type="number" min="-180" max="180" step="1" value="0" />
+			</div>
+			<div class="row">
+				<label for="rotateY"><strong>Model Rotation Y (°)</strong></label>
+				<input id="rotateY" type="range" min="-180" max="180" step="1" value="0" />
+				<input id="rotateYNumber" type="number" min="-180" max="180" step="1" value="0" />
+			</div>
+			<div class="row">
+				<label for="rotateZ"><strong>Model Rotation Z (°)</strong></label>
+				<input id="rotateZ" type="range" min="-180" max="180" step="1" value="0" />
+				<input id="rotateZNumber" type="number" min="-180" max="180" step="1" value="0" />
+			</div>
+			<div class="row row-single">
+				<button id="resetRotation" type="button">Reset Rotation</button>
+			</div>
+			<p class="hint">Tip: drag in the viewport to rotate the model interactively.</p>
+
+			<hr />
+
 			<h2>Camera Controls</h2>
 			<div class="row">
 				<label for="lensPreset"><strong>Focal Length Preset</strong></label>
