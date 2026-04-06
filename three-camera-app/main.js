@@ -1,4 +1,7 @@
-/* global THREE */
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+
 (function () {
 	const container = document.getElementById('canvas-container');
 	const scene = new THREE.Scene();
@@ -32,8 +35,8 @@
 	dir.position.set(5, 10, 10);
 	scene.add(dir);
 
-	const gltfLoader = new THREE.GLTFLoader();
-	const objLoader = new THREE.OBJLoader();
+	const gltfLoader = new GLTFLoader();
+	const objLoader = new OBJLoader();
 
 	const lensPreset = document.getElementById('lensPreset');
 	const lensCustom = document.getElementById('lensCustom');
@@ -175,8 +178,12 @@
 		const targetSize = 2.5;
 		const scale = targetSize / maxAxis;
 
-		model.position.sub(center);
 		model.scale.multiplyScalar(scale);
+		model.updateMatrixWorld(true);
+
+		const scaledBounds = new THREE.Box3().setFromObject(model);
+		const scaledCenter = scaledBounds.getCenter(new THREE.Vector3());
+		model.position.sub(scaledCenter);
 		model.updateMatrixWorld(true);
 
 		const groundedBounds = new THREE.Box3().setFromObject(model);
@@ -191,7 +198,9 @@
 		}
 		activeModel = model;
 		normalizeAndGroundModel(activeModel);
+		modelPivot.rotation.set(0, 0, 0);
 		modelPivot.add(activeModel);
+		syncRotationInputsFromModel();
 	}
 
 	function setModelStatus(text) {
@@ -301,7 +310,7 @@
 			return mappedUrl;
 		});
 
-		const localLoader = new THREE.GLTFLoader(manager);
+		const localLoader = new GLTFLoader(manager);
 		return new Promise((resolve, reject) => {
 			const sceneUrl = URL.createObjectURL(gltfFile);
 			temporaryUrls.push(sceneUrl);
